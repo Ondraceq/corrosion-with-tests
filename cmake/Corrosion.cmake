@@ -1002,6 +1002,52 @@ function(_add_cargo_build out_cargo_build_out_dir)
     add_dependencies(cargo-prebuild cargo-prebuild_${target_name})
 
     add_custom_target(
+        cargo-buildtest_${target_name}
+        ALL
+        # Ensure the target directory exists
+        COMMAND
+            ${CMAKE_COMMAND} -E make_directory ${target_dir}
+        # Build crate
+        COMMAND
+            ${CMAKE_COMMAND} -E env
+                "${build_env_variable_genex}"
+                "${global_rustflags_genex}"
+                "${cargo_target_linker}"
+                "${corrosion_cc_rs_flags}"
+                "${cargo_library_path}"
+                "CORROSION_BUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}"
+                "CARGO_BUILD_RUSTC=${_CORROSION_RUSTC}"
+            "${_CORROSION_CARGO}"
+                rustc
+                --tests
+                ${cargo_rustc_filter}
+                ${cargo_target_option}
+                ${_CORROSION_VERBOSE_OUTPUT_FLAG}
+                # Global --features arguments added via corrosion_import_crate()
+                ${features_args}
+                ${all_features_arg}
+                ${no_default_features_arg}
+                # Target specific features added via corrosion_set_features().
+                ${features_genex}
+                --package ${package_name}
+                --manifest-path "${path_to_toml}"
+                --target-dir "${cargo_target_dir}"
+                ${cargo_profile}
+                ${flag_args}
+                ${flags_genex}
+                # Any arguments to cargo must be placed before this line
+                ${local_rustflags_delimiter}
+                ${local_rustflags_genex}
+
+        # The build is conducted in the directory of the Manifest, so that configuration files such as
+        # `.cargo/config.toml` or `toolchain.toml` are applied as expected.
+        WORKING_DIRECTORY "${workspace_toml_dir}"
+        USES_TERMINAL
+        COMMAND_EXPAND_LISTS
+        VERBATIM
+    )
+
+    add_custom_target(
         cargo-clean_${target_name}
         COMMAND
             $<TARGET_FILE:Rust::Cargo> clean --target ${_CORROSION_RUST_CARGO_TARGET}
